@@ -1,0 +1,57 @@
+--Create databse and schema--
+
+create or replace database SPRINT1;
+create or replace schema PUBLIC;
+
+--Create table called as PROJECT--
+
+CREATE or REPLACE TABLE "SPRINT1"."PUBLIC"."PROJECT" ("ROWID" INTEGER, "ORDERID" STRING, "ORDERDATE" String,"SHIPDATE" String,
+                                        "SHIPMODE" STRING,"CUSTOMERID" STRING, "CUSTOMERNAME" STRING, "SEGMENT" STRING,
+                                        "COUNTRY" STRING, "CITY" STRING, "STATE" STRING, "POSTALCODE" INTEGER,
+                                        "REGION" STRING, "PRODUCTID" STRING, "CATEGORY" STRING, "SUBCATEGORY" STRING, "PRODUCTNAME" STRING,
+                                        "SALES" DOUBLE, "QUANTITY" INTEGER, "DISCOUNT" DOUBLE, "PROFIT" INTEGER);
+
+--Create Backup table called as PROJECTBACKUP--
+
+CREATE or REPLACE TABLE "SPRINT1"."PUBLIC"."PROJECTBACKUP" ("ROWID" INTEGER, "ORDERID" STRING, "ORDERDATE" String,"SHIPDATE" String,
+                                        "SHIPMODE" STRING,"CUSTOMERID" STRING, "CUSTOMERNAME" STRING, "SEGMENT" STRING,
+                                        "COUNTRY" STRING, "CITY" STRING, "STATE" STRING, "POSTALCODE" INTEGER,
+                                        "REGION" STRING, "PRODUCTID" STRING, "CATEGORY" STRING, "SUBCATEGORY" STRING, "PRODUCTNAME" STRING,
+                                        "SALES" DOUBLE, "QUANTITY" INTEGER, "DISCOUNT" DOUBLE, "PROFIT" INTEGER);
+
+--Insert Data into BackUp Table--
+
+Insert into ProjectBackup select * from Project;
+
+--create a new stream for PROJECT table
+
+create or replace stream  
+PROJECTSTREAM on table PROJECT
+append_only=true;
+
+--create task for PROJECTSTREAM table--
+CREATE OR REPLACE TASK ProjectTask
+    WAREHOUSE = "ANCHIT_PRACTICE"
+    SCHEDULE = 'USING CRON 0 0 * * 5 Asia/Kolkata'  
+    when
+    system$stream_has_data('PROJECTSTREAM')
+  as
+    insert into PROJECT select * from PROJECTSTREAM;
+
+--Calculate the number of Orders those with Ship Mode as ‘Second Class--
+Select count(*) as "Number of Orders whose Ship Mode is Second Class"  from PROJECT where ShipMode='Second Class';
+
+ --List down the most valuable customers Country wise--
+Select CustomerID,CustomerName,Sales,country from PROJECT where sales in (Select max(sales) from PROJECT group by country);
+
+--Total Sales for Category ‘Furniture’--
+Select sum(Sales) as "Total Sales for Category ‘Furniture" from PROJECT where Category ='Furniture';
+
+--Which Product provides the maximum profit--
+Select ProductName  from PROJECT where Profit= (Select max(Profit) from Project) ;
+
+--Calculate the total profit made by each product category--
+Select Category, sum(Profit) from Project where country in (Select distinct country from Project) group by Category ;
+
+-- Which region of United States have majority loss?--
+Select Top 1 Region, abs(sum(Profit)) as "Loss" from Project where Profit < 0  group by Region order by sum(Profit) asc;
